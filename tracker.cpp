@@ -41,6 +41,17 @@ void PongTable::MouseCallback( int event, int x, int y, int flags, void * param 
   }
 }
 
+void PongTable::GetThresholdedImage( const IplImage & image, IplImage & out )
+{
+  IplImage * hsv = cvCreateImage( cvGetSize( &image ), 8, 3 );
+  cvCvtColor(&image, hsv, CV_BGR2HSV);
+
+  cvInRangeS(hsv, cvScalar(0, 0, 230), cvScalar(255, 255, 255), &out);
+
+  cvReleaseImage(&hsv);
+}
+
+
 PongTable::PongTable() : m_draggingBox(false), m_hasBox(false) {}
 
 void PongTable::DrawBounds( IplImage & image ) {
@@ -63,11 +74,35 @@ void PongTable::DrawBounds( IplImage & image ) {
   br.x = tl.x + m_boundingBox.width;
   br.y = tl.y + m_boundingBox.height;
 
-  cvLine( &image, tl, tr, cvScalar( 0, 255, 0), 5 );
-  cvLine( &image, tr, br, cvScalar( 0, 255, 0), 5 );
-  cvLine( &image, br, bl, cvScalar( 0, 255, 0), 5 );
-  cvLine( &image, bl, tl, cvScalar( 0, 255, 0), 5 );
+  cvLine( &image, tl, tr, CV_RGB( 0, 255, 0), 5 );
+  cvLine( &image, tr, br, CV_RGB( 0, 255, 0), 5 );
+  cvLine( &image, br, bl, CV_RGB( 0, 255, 0), 5 );
+  cvLine( &image, bl, tl, CV_RGB( 0, 255, 0), 5 );
 }
+
+CvPoint PongTable::GetBallPosition( const IplImage & image ) {
+
+  IplImage * threshed = cvCreateImage( cvGetSize( &image ), 8, 1 );
+  GetThresholdedImage( image, *threshed );
+
+  //
+  // Calculate the moments to estimate the position of the ball
+  CvMoments moments;
+  cvMoments( threshed, &moments, 1 );
+
+  // The actual moment values
+  double moment10 = cvGetSpatialMoment(&moments, 1, 0);
+  double moment01 = cvGetSpatialMoment(&moments, 0, 1);
+  double area = cvGetCentralMoment(&moments, 0, 0);
+
+  // Holding the last and current ball positions
+  CvPoint out;
+  out.x = moment10 / area;
+  out.y = moment01 / area;
+
+  return out;
+}
+
 
 //! Get a capture to track from
 // \param file File to read from or NULL to use camera
@@ -107,16 +142,23 @@ int main( int argc, char * argv[] ) {
   CvSize captureSize;
   captureSize.width = cvGetCaptureProperty( capture, CV_CAP_PROP_FRAME_WIDTH );
   captureSize.height = cvGetCaptureProperty( capture, CV_CAP_PROP_FRAME_HEIGHT );
-  IplImage * tableBounds = cvCreateImage( captureSize, 8, 3 );
+  IplImage * overlay = cvCreateImage( captureSize, 8, 3 );
 
   // Track the ball
   while( true ) {
     IplImage * const frame = cvQueryFrame( capture );
     if( !frame ) break;
 
-    table.DrawBounds( *tableBounds );
-    cvAdd( frame, tableBounds, frame );
-    cvSet(tableBounds, cvScalar(0,0,0));
+    // Draw the table
+    table.DrawBounds( *overlay );
+
+    // Highlight the ball
+    CvPoint ball = table.GetBallPosition( *frame );
+    cvCircle( overlay, ball, 20, CV_RGB( 255, 0, 0 ) );
+
+    // Add the overlay
+    cvAdd( frame, overlay, frame );
+    cvSet( overlay, cvScalar( 0, 0, 0) );
 
     cvShowImage( "capture", frame );
 
