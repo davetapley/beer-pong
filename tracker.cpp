@@ -1,15 +1,13 @@
 #include <opencv2/opencv.hpp>
 
-int main(int argc, char * argv[]) {
-
-  // Get a capture
-  const char * const captureFile = (argc > 1) ? argv[1] : 0;
-
+//! Get a capture to track from
+// \param file File to read from or NULL to use camera
+CvCapture * GetCapture(const char * const file) {
   CvCapture * capture = 0;
 
-  if(captureFile) {
-    capture = cvCaptureFromAVI(captureFile);
-    std::cout << "Capture from " << captureFile << std::endl;
+  if(file) {
+    capture = cvCaptureFromAVI(file);
+    std::cout << "Capture from " << file << std::endl;
 
   } else {
     capture = cvCaptureFromCAM(0);
@@ -18,8 +16,17 @@ int main(int argc, char * argv[]) {
 
   if(!capture) {
     std::cout << "Couldn't read capture" << std::endl;
-    return 1;
+    return 0;
   }
+
+  return capture;
+}
+
+int main(int argc, char * argv[]) {
+
+  // Get a capture
+  const char * const captureFile = (argc > 1) ? argv[1] : 0;
+  CvCapture * capture = GetCapture(captureFile);
 
   cvNamedWindow("capture");
 
