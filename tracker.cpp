@@ -152,10 +152,7 @@ int main( int argc, char * argv[] ) {
     table.DrawBounds( *overlay );
 
     // Highlight the ball
-    CvSize imageSize;
-    imageSize.width = 1280;
-    imageSize.height = 720;
-    IplImage * threshed = cvCreateImage( imageSize, 8, 1 );
+    IplImage * threshed = cvCreateImage( captureSize, 8, 1 );
 
     CvPoint ball = table.GetBallPosition( *frame, *threshed );
     cvCircle( overlay, ball, 20, CV_RGB( 255, 0, 0 ) );
