@@ -8,7 +8,7 @@ class PongTable
     PongTable();
 
     void DrawBounds( IplImage & image );
-    CvPoint GetBallPosition( const IplImage & image );
+    CvPoint GetBallPosition( const IplImage & image, IplImage & threshed );
 
   private:
     CvRect m_boundingBox;

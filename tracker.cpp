@@ -46,7 +46,7 @@ void PongTable::GetThresholdedImage( const IplImage & image, IplImage & out )
   IplImage * hsv = cvCreateImage( cvGetSize( &image ), 8, 3 );
   cvCvtColor(&image, hsv, CV_BGR2HSV);
 
-  cvInRangeS(hsv, cvScalar(0, 0, 230), cvScalar(255, 255, 255), &out);
+  cvInRangeS(hsv, cvScalar(0, 0, 128), cvScalar(255, 255, 255), &out);
 
   cvReleaseImage(&hsv);
 }
@@ -80,15 +80,13 @@ void PongTable::DrawBounds( IplImage & image ) {
   cvLine( &image, bl, tl, CV_RGB( 0, 255, 0), 5 );
 }
 
-CvPoint PongTable::GetBallPosition( const IplImage & image ) {
+CvPoint PongTable::GetBallPosition( const IplImage & image, IplImage & threshed ) {
 
-  IplImage * threshed = cvCreateImage( cvGetSize( &image ), 8, 1 );
-  GetThresholdedImage( image, *threshed );
+  GetThresholdedImage( image, threshed );
 
-  //
   // Calculate the moments to estimate the position of the ball
   CvMoments moments;
-  cvMoments( threshed, &moments, 1 );
+  cvMoments( &threshed, &moments, 1 );
 
   // The actual moment values
   double moment10 = cvGetSpatialMoment(&moments, 1, 0);
@@ -133,6 +131,7 @@ int main( int argc, char * argv[] ) {
   CvCapture * capture = GetCapture( captureFile );
 
   cvNamedWindow( "capture" );
+  cvNamedWindow( "threshed" );
 
   // Make a table
   PongTable table;
@@ -153,7 +152,12 @@ int main( int argc, char * argv[] ) {
     table.DrawBounds( *overlay );
 
     // Highlight the ball
-    CvPoint ball = table.GetBallPosition( *frame );
+    CvSize imageSize;
+    imageSize.width = 1280;
+    imageSize.height = 720;
+    IplImage * threshed = cvCreateImage( imageSize, 8, 1 );
+
+    CvPoint ball = table.GetBallPosition( *frame, *threshed );
     cvCircle( overlay, ball, 20, CV_RGB( 255, 0, 0 ) );
 
     // Add the overlay
@@ -161,6 +165,9 @@ int main( int argc, char * argv[] ) {
     cvSet( overlay, cvScalar( 0, 0, 0) );
 
     cvShowImage( "capture", frame );
+    cvShowImage( "threshed", threshed );
+
+    cvReleaseImage(&threshed);
 
     const int c = cvWaitKey( 10 );
     if( c != -1 ) break;
