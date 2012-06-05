@@ -43,7 +43,11 @@ void PongTable::MouseCallback( int event, int x, int y, int flags, void * param 
 
 void PongTable::GetThresholdedImage( const IplImage & image, IplImage & out )
 {
-  IplImage * hsv = cvCreateImage( cvGetSize( &image ), 8, 3 );
+  CvSize roiSize;
+  roiSize.width = image.roi->width;
+  roiSize.height = image.roi->height;
+
+  IplImage * hsv = cvCreateImage( roiSize, 8, 3 );
   cvCvtColor(&image, hsv, CV_BGR2HSV);
 
   cvInRangeS(hsv, cvScalar(0, 0, 128), cvScalar(255, 255, 255), &out);
@@ -80,9 +84,16 @@ void PongTable::DrawBounds( IplImage & image ) {
   cvLine( &image, bl, tl, CV_RGB( 0, 255, 0), 5 );
 }
 
-CvPoint PongTable::GetBallPosition( const IplImage & image, IplImage & threshed ) {
+CvPoint PongTable::GetBallPosition( IplImage & image, IplImage & threshed ) {
 
+  CvPoint out;
+  if (!m_hasBox) return out;
+
+  cvSetImageROI( &image, m_boundingBox );
+  cvSetImageROI( &threshed, m_boundingBox );
   GetThresholdedImage( image, threshed );
+  cvResetImageROI( &image );
+  cvResetImageROI( &threshed );
 
   // Calculate the moments to estimate the position of the ball
   CvMoments moments;
@@ -94,9 +105,8 @@ CvPoint PongTable::GetBallPosition( const IplImage & image, IplImage & threshed 
   double area = cvGetCentralMoment(&moments, 0, 0);
 
   // Holding the last and current ball positions
-  CvPoint out;
-  out.x = moment10 / area;
-  out.y = moment01 / area;
+  out.x = (moment10 / area);
+  out.y = (moment01 / area) + m_boundingBox.y;
 
   return out;
 }
@@ -155,7 +165,7 @@ int main( int argc, char * argv[] ) {
     IplImage * threshed = cvCreateImage( captureSize, 8, 1 );
 
     CvPoint ball = table.GetBallPosition( *frame, *threshed );
-    cvCircle( overlay, ball, 20, CV_RGB( 255, 0, 0 ) );
+    cvCircle( overlay, ball, 20, CV_RGB( 255, 0, 0 ), 4 );
 
     // Add the overlay
     cvAdd( frame, overlay, frame );
